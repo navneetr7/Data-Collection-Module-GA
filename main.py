@@ -320,6 +320,17 @@ try:
             send_slack_message("error", f"Gemini failed: {str(e)}", ticket_id)
             raise HTTPException(status_code=500, detail=f"Failed to extract questions: {str(e)}")
 
+    # Helper to get ticket status from Zendesk
+    def get_ticket_status(ticket_id: str) -> str:
+        url = f"https://{ZENDESK_SUBDOMAIN}.zendesk.com/api/v2/tickets/{ticket_id}.json"
+        headers = zendesk_basic_auth_header()
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch ticket status: {response.status_code} {response.text}")
+            raise HTTPException(status_code=500, detail="Failed to fetch ticket status")
+        ticket = response.json().get("ticket", {})
+        return ticket.get("status", "")
+
     # Endpoints
     @app.post("/data-link-start")
     async def data_link_start(payload: WebhookPayload, api_key: str = Depends(verify_api_key)):
@@ -331,6 +342,12 @@ try:
             if not ticket_id.isdigit():
                 send_slack_message("error", "Invalid ticket_id", ticket_id)
                 raise HTTPException(status_code=400, detail="Invalid ticket_id")
+
+            # Check ticket status before processing
+            ticket_status = get_ticket_status(ticket_id)
+            if ticket_status != "open":
+                logger.info(f"Ticket {ticket_id} is not open (status: {ticket_status}), skipping data collection.")
+                return {"status": "skipped", "reason": f"Ticket status is {ticket_status}, not open."}
 
             # Clean up existing data
             cleanup_supabase_data(ticket_id, supabase)
@@ -370,6 +387,8 @@ try:
             # Clear existing fields and tags
             update_ticket(ticket_id, custom_field_value="", customer_answers_value="", tags=[])
             update_ticket(ticket_id, custom_field_value=magic_link)
+            # Set ticket status to pending after processing
+            update_ticket(ticket_id, status="pending")
             send_slack_message("info", f"Magic link generated: {magic_link}", ticket_id)
             logger.info(f"Request {request_id}: Success for ticket {ticket_id}")
 
