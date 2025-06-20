@@ -17,6 +17,7 @@ from cachetools import TTLCache
 import time
 from urllib.parse import unquote
 import base64
+from fastapi.responses import RedirectResponse
 
 print("Starting script...")
 
@@ -42,6 +43,7 @@ try:
     ZENDESK_FIELD_ID = os.getenv("ZENDESK_FIELD_ID")
     ZENDESK_CUSTOMER_ANSWERS_FIELD_ID = os.getenv("ZENDESK_CUSTOMER_ANSWERS_FIELD_ID")
     BASE_URL = os.getenv("BASE_URL", "https://example.com")
+    FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "https://ga-collection-frontend.vercel.app")
 
     print(f"API_KEY: {API_KEY}")
     print(f"GEMINI_API_KEY: {'set' if GEMINI_API_KEY else 'missing'}")
@@ -55,6 +57,7 @@ try:
     print(f"ZENDESK_FIELD_ID: {ZENDESK_FIELD_ID}")
     print(f"ZENDESK_CUSTOMER_ANSWERS_FIELD_ID: {ZENDESK_CUSTOMER_ANSWERS_FIELD_ID}")
     print(f"BASE_URL: {BASE_URL}")
+    print(f"FRONTEND_BASE_URL: {FRONTEND_BASE_URL}")
 
     # Validate environment variables
     missing_vars = []
@@ -82,6 +85,8 @@ try:
         missing_vars.append("ZENDESK_CUSTOMER_ANSWERS_FIELD_ID")
     if not BASE_URL:
         missing_vars.append("BASE_URL")
+    if not FRONTEND_BASE_URL:
+        missing_vars.append("FRONTEND_BASE_URL")
     if missing_vars:
         raise ValueError(f"Missing environment variables: {', '.join(missing_vars)}")
 
@@ -363,7 +368,7 @@ try:
                 raise HTTPException(status_code=400, detail="No questions extracted")
 
             form_uuid = str(uuid.uuid4())
-            magic_link = f"{BASE_URL}/form/{form_uuid}"
+            magic_link = f"{FRONTEND_BASE_URL}/form/{form_uuid}"
 
             # Transaction: cleanup and insert
             try:
@@ -611,6 +616,11 @@ try:
     async def logout():
         # For stateless API key auth, just return success. If you add sessions/cookies, clear them here.
         return {"message": "Logged out successfully"}
+
+    @app.get("/form/{uuid}")
+    def redirect_form(uuid: str):
+        frontend_url = f"{FRONTEND_BASE_URL}/form/{uuid}"
+        return RedirectResponse(frontend_url)
 
 except Exception as e:
     print(f"Error starting app: {str(e)}")
