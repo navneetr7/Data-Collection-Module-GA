@@ -1,8 +1,9 @@
-fastapi==0.103.2
-uvicorn==0.23.2
-pydantic==1.10.13
-requests==2.31.0
-python-dotenv==1.0.0
-psycopg2-binary==2.9.9
-supabase==2.7.4
-tenacity==8.2.3
+fastapi==0.111.0
+uvicorn[standard]
+pydantic==2.11.4
+requests==2.32.3
+python-dotenv==1.0.1
+supabase==2.5.1
+tenacity==8.5.0
+bleach==6.2.0
+cachetools==5.5.2
